@@ -1,0 +1,41 @@
+name: Update
+
+on:
+  watch:
+    types: [started]
+  schedule:
+    - cron: 0 16 * * *
+
+env:
+  TZ: Asia/Shanghai
+
+jobs:
+  Update:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: GetTime
+      id: date
+      run: echo "::set-output name=date::$(date +'%Y-%m-%d %H:%M:%S CST')"
+
+    - name: Update
+      run: |
+        rm -rf ./tuic
+        tuicv=$(wget -qO- https://api.github.com/repos/EAimTY/tuic/releases | grep -o '"tag_name": ".*"' | head -n 1 | sed 's/"//g' | sed 's/tag_name: //g')
+        wget -N "https://github.com/EAimTY/tuic/releases/download/${tuicv}/${tuicv}-x86_64-unknown-linux-musl" -O ./tuic
+        echo "Auto Update TUIC in ${{ steps.date.outputs.date }}" > README.md
+
+    - name: Clean
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git checkout --orphan latest_branch
+        git add -A
+        git commit -am "${{ steps.date.outputs.date }}"
+        git branch -D Files
+        git branch -m Files
+
+    - name: Push
+      run: git push -f origin Files
